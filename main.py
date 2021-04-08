@@ -14,13 +14,14 @@ originalWidth = image.shape[1]
 originalHeight = image.shape[0]
 
 #Mouse boolean signs.
-mousewheelUp = False
-mousewheelDown = False
+#mousewheelUp = False
+#mousewheelDown = False
 
 #Mouse functions.
 def mouse_events(event, x, y, flags, param):
     #print(event)
     #print(flags)
+    global image
     
     if event == cv.EVENT_LBUTTONDBLCLK:
         #Crop the sub-rect from the image
@@ -35,15 +36,21 @@ def mouse_events(event, x, y, flags, param):
         image[y:y+128, x:x+128] = select
     
     if event == cv.EVENT_MOUSEWHEEL:
-        zoom_image = image
+        #zoom_image = image
         #Sign of the flag shows direction of mousewheel.
         if flags > 0:
             #scroll up
-            cv.resize(zoom_image,None,fx=1.5, fy=1.5, interpolation = cv.INTER_CUBIC)
-            image = zoom_image
+            #cv.resize(zoom_image,None,fx=1.5, fy=1.5, interpolation = cv.INTER_CUBIC)
+            #image = zoom_image
+            image = cv.resize(image,None,fx=2, fy=2, interpolation = cv.INTER_CUBIC)
         else:
+            print(originalWidth < image.shape[1])
+            print(originalHeight < image.shape[0])
             #scroll down
-            cv.resize(image,None,fx=0.5, fy=0.5, interpolation = cv.INTER_CUBIC)
+            if originalWidth < image.shape[1] and originalHeight < image.shape[0]:
+                image = cv.resize(image,None,fx=0.5, fy=0.5, interpolation = cv.INTER_CUBIC)
+        
+        print(image.shape)
 
 cv.namedWindow("Display window", cv.WINDOW_AUTOSIZE)
 cv.setMouseCallback("Display window", mouse_events)
@@ -63,7 +70,7 @@ while(1):
     if k == 27:
         break
     
-    if  mousewheelUp:
-        print("AQUI")
-    elif mousewheelDown:
-        print("Outro AQUI")
+    #if  mousewheelUp:
+    #    print("AQUI")
+    #elif mousewheelDown:
+    #    print("Outro AQUI")
