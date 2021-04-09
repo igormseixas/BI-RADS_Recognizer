@@ -13,18 +13,15 @@ if image is None:
 originalWidth = image.shape[1]
 originalHeight = image.shape[0]
 
-#Mouse boolean signs.
-mousewheelUp = False
-mousewheelDown = False
-
 #Mouse functions.
 def mouse_events(event, x, y, flags, param):
     #print(event)
     #print(flags)
+    global image
     
     if event == cv.EVENT_LBUTTONDBLCLK:
         #Crop the sub-rect from the image
-        overlay = image[y:y+128, x:x+128]
+        overlay = image[y-64:y+64, x-64:x+64]
         blue_rect = np.full(overlay.shape, (255,0,0), dtype=np.uint8) #Build rectangle and set the blue color (255,0,0)
 
         #Add the rectangle to the selected and previously cut area of an image. Scale the transparency.
@@ -32,18 +29,23 @@ def mouse_events(event, x, y, flags, param):
         transparency=0.7 #Greater the value, greater the transparency is.
         gamma=10.0 #Gamma of the selected area, more gamma more white will me added.
         select = cv.addWeighted(overlay, transparency, blue_rect, 1-transparency, gamma)
-        image[y:y+128, x:x+128] = select
+        image[y-64:y+64, x-64:x+64] = select
     
-    if event == cv.EVENT_MOUSEWHEEL:
-        zoom_image = image
+    if event == cv.EVENT_MOUSEWHEEL:    
         #Sign of the flag shows direction of mousewheel.
         if flags > 0:
             #scroll up
-            cv.resize(zoom_image,None,fx=1.5, fy=1.5, interpolation = cv.INTER_CUBIC)
-            image = zoom_image
+            #cv.moveWindow("Display window", 0, 0)
+            image = cv.resize(image,None,fx=2, fy=2, interpolation = cv.INTER_CUBIC)
+            cv.moveWindow("Display window", 0, 0)
         else:
+            print(originalWidth < image.shape[1])
+            print(originalHeight < image.shape[0])
             #scroll down
-            cv.resize(image,None,fx=0.5, fy=0.5, interpolation = cv.INTER_CUBIC)
+            if originalWidth < image.shape[1] and originalHeight < image.shape[0]:
+                image = cv.resize(image,None,fx=0.5, fy=0.5, interpolation = cv.INTER_CUBIC)
+        
+        print(image.shape)
 
 cv.namedWindow("Display window", cv.WINDOW_AUTOSIZE)
 cv.setMouseCallback("Display window", mouse_events)
@@ -57,13 +59,9 @@ print(image.shape)
 #Show image, ESQ for exit.
 while(1):
     cv.imshow("Display window", image)
-    #cv.resizeWindow("Display window", originalWidth, originalHeight)
+    cv.resizeWindow("Display window", originalWidth, originalHeight)
     k = cv.waitKey(1) & 0XFF
     
+    #Case ESQ
     if k == 27:
         break
-    
-    if  mousewheelUp:
-        print("AQUI")
-    elif mousewheelDown:
-        print("Outro AQUI")
