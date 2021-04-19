@@ -2,25 +2,41 @@ import cv2 as cv
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
+
 from tkinter import *
-from PIL import Image
-from PIL import ImageTk
 from tkinter import filedialog
 
-# configure main menu
+from PIL import Image
+from PIL import ImageTk
+
+
+# Global control variables.
+image_label = None
+region_window = None
+region_label = None
+image = None
+originalWidth = None
+originalHeight = None
+copyImage = None
+selectedRegion = None
+selectedRegion_is_gray = False
+copySelectedRegion = None
+zoom_in = False
+
+# Configure Main Menu.
 def configure_menu():
-    #file menu
+    #File Menu.
     file_menu = Menu(menu, tearoff=0) #tearoff=0 makes the menu cleaner
     menu.add_cascade(label="File",menu=file_menu) #add menu cascade for file
     file_menu.add_command(label="Open..",command=open_image) #open option inside file menu
 
-    #image menu
+    #Image Menu.
     image_menu = Menu(menu,tearoff=0)
     menu.add_cascade(label="Image",menu=image_menu) #add menu cascade for image
     image_menu.add_command(label="Reset",command=lambda: reset_area(image_area=True)) #reset image option inside image menu
     image_menu.add_command(label="Histogram Equalization",command=None) #image histogram equalization option inside image menu
 
-    #region menu
+    #Region Menu.
     region_menu = Menu(menu,tearoff=0)
     menu.add_cascade(label="Region",menu=region_menu) #add menu cascade for region
     region_menu.add_command(label="Reset",command=lambda: reset_area(image_area=False)) #reset region option inside region menu
@@ -34,19 +50,20 @@ def configure_menu():
     region_quantization.add_command(label="32",command=lambda: changeGrayScale(newGrayScale=32)) #quantizating 32 level of grays region option inside region menu
     region_quantization.add_command(label="256",command=lambda: changeGrayScale(newGrayScale=256)) #quantizating 256 level of grays region option inside region menu
 
-#convert image from opencv to imagetk format to show at Tk. return new image to show
+# Convert image from opencv to imagetk format to show at Tk. 
+# Return new image to show.
 def convert_image(image):
     imageTk = cv.cvtColor(image, cv.COLOR_BGR2RGB) #ImageTk format is RGB and opencv is BGR
     imageTk = Image.fromarray(imageTk)
     imageTk = ImageTk.PhotoImage(imageTk)
     return imageTk
 
-#apply ImageTk format in the label to show at Tk
+# Apply ImageTk format in the label to show at Tk.
 def apply_image(image,label):
     label.configure(image=image)
     label.image = image
 
-#redefine image or region as it was before
+# Redefine image or region as it was before.
 def reset_area(image_area): #image_area True for image; False to reset region
     global image
     global selectedRegion
@@ -63,7 +80,7 @@ def reset_area(image_area): #image_area True for image; False to reset region
         selectedRegionTk = convert_image(selectedRegion)
         apply_image(selectedRegionTk,region_label)
 
-#open a path to choose image, save its original format in opencv and show result at ImageTk
+# Open a path to choose image, save its original format in opencv and show result at ImageTk.
 def open_image():
     global image_label
     global copyImage
@@ -89,7 +106,7 @@ def open_image():
         else:
             apply_image(imageTk,image_label) #if label already exists, just apply new image to it
 
-#create blue square as selectedRegion with 128x128, makes a copy of it, create a new window for the region and show it
+# Create blue square as selectedRegion with 128x128, makes a copy of it, create a new window for the region and show it.
 def doubleclick_event(event):
     global selectedRegion
     global copySelectedRegion
@@ -144,8 +161,8 @@ def doubleclick_event(event):
                 region_label.pack()
                 region_window.mainloop()
 
-#zoom in and out scrolling mouse wheel centering around pointer; 
-# updates image with zoom in and show at Tk; if with zoom in, zoom out restore original image
+# Zoom in and out scrolling mouse wheel centering around pointer; 
+# Updates image with zoom in and show at Tk; if with zoom in, zoom out restore original image.
 def mousewheel_event(event):
     global image
     global zoom_in
@@ -241,26 +258,13 @@ def changeResolution(newWidth, newHeight):
         apply_image(selectedRegionTk,region_label)        
 
 
-root = Tk() #main instance of Tk application
+root = Tk() # Main instance of Tk application.
 root.title("Projeto PI")
 
-#global control variables
-image_label = None
-region_window = None
-region_label = None
-image = None
-originalWidth = None
-originalHeight = None
-copyImage = None
-selectedRegion = None
-selectedRegion_is_gray = False
-copySelectedRegion = None
-zoom_in = False
-
-# creates main menu
+# Create Main Menu.
 menu = Menu(root)
 root.configure(menu=menu)
-configure_menu() #procedure to create our menu
+configure_menu() #Procedure to create our menu.
 
-# runs final application
+# Runs final application.
 root.mainloop()
