@@ -119,6 +119,7 @@ def open_image():
 # Create blue square as selectedRegion with 128x128, makes a copy of it, create a new window for the region and show it.
 def doubleclick_event(event):
     global selectedRegion
+    global selectedRegion_is_gray
     global copySelectedRegion
     global region_window
     global region_label
@@ -127,6 +128,8 @@ def doubleclick_event(event):
     if not zoom_in: #avoiding making a square while zooming in
         # Clears image before making a new sub-rect.
         image = copyImage.copy()
+        # Reset the gray scale situation.
+        selectedRegion_is_gray = False
         # Crop the sub-rect from the image
         region_size = 128 #Region size may change to 128, 64 and 32.
         overlay = image[event.y-(region_size//2):event.y+(region_size//2), event.x-(region_size//2):event.x+(region_size//2)]
@@ -166,8 +169,7 @@ def doubleclick_event(event):
         else:
             # Makes sure if the window is still open; if not, recreate it.
             if region_window.winfo_exists():
-                #250x180 is the box of the window. x+100 is the padding of the width, and y + 0 is the padding of the height.
-                region_window.geometry("%dx%d+%d+%d" % (250, 180, x + 100, y + 0)) 
+                # Reset the transformations of the image.
                 apply_image(selectedRegionTk,region_label)
             else:
                 region_window = Toplevel()
