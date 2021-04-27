@@ -132,7 +132,29 @@ def doubleclick_event(event):
         selectedRegion_is_gray = False
         # Crop the sub-rect from the image
         region_size = 128 #Region size may change to 128, 64 and 32.
-        overlay = image[event.y-(region_size//2):event.y+(region_size//2), event.x-(region_size//2):event.x+(region_size//2)]
+        # Making the region size as parameter, checks if it will be out of bounds first.
+        # First is width.
+        if (event.x-(region_size//2)) < 0: 
+            region_initial_width = 0
+            region_final_width = region_size-1
+        elif (event.x+(region_size//2)) > originalWidth:
+            region_initial_width = originalWidth - region_size
+            region_final_width = originalWidth - 1
+        else: # If it has space from both sides.
+            region_initial_width = event.x-(region_size//2)
+            region_final_width = (event.x+(region_size//2)) - 1
+        # Same for height.
+        if (event.y-(region_size//2)) < 0:
+            region_initial_height = 0
+            region_final_height = region_size-1
+        elif (event.y+(region_size//2)) > originalHeight:
+            region_initial_height = originalHeight - region_size
+            region_final_height = originalHeight - 1
+        else:
+            region_initial_height = event.y-(region_size//2)
+            region_final_height = (event.y+(region_size//2)) - 1
+        # Crop region within range.
+        overlay = image[region_initial_height:region_final_height, region_initial_width:region_final_width]
         # Copy information to a selected image.
         selectedRegion = overlay.copy()
         # Define a blue rectangle in the same shape as previously selected.
@@ -142,7 +164,7 @@ def doubleclick_event(event):
         transparency=0.7 #Greater the value, greater the transparency is.
         gamma=10.0 # Gamma of the selected area, more gamma more white will me added.
         select = cv.addWeighted(overlay, transparency, blue_rect, 1-transparency, gamma)
-        image[event.y-(region_size//2):event.y+(region_size//2), event.x-(region_size//2):event.x+(region_size//2)] = select
+        image[region_initial_height:region_final_height, region_initial_width:region_final_width] = select
         # Convert and show at Tk.
         imageTk = convert_image(image)
         apply_image(imageTk,image_label)
