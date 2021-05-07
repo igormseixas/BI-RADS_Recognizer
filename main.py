@@ -2,12 +2,17 @@ import cv2 as cv
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
+import os
 
 from tkinter import *
 from tkinter import filedialog
 
 from PIL import Image
 from PIL import ImageTk
+
+from skimage.feature import greycomatrix, greycoprops # Library for Grey Level Co-occurrence Matrix.
+from skimage.measure import shannon_entropy           # Complementation of the Library to calculate entropy.
+from skimage import data
 
 
 # Global control variables.
@@ -34,7 +39,7 @@ def configure_menu():
     file_menu.add_separator()
     file_menu.add_command(label ='Clear', command=lambda: reset_area(image_area=True))
     file_menu.add_separator()
-    file_menu.add_command(label ='Exit', command = root.destroy)
+    file_menu.add_command(label ='Exit', command = mainwindow.destroy)
 
     #Region Menu.
     region_menu = Menu(menu,tearoff=0)
@@ -55,6 +60,17 @@ def configure_menu():
 
     region_menu.add_separator()
     region_menu.add_command(label="Reset",command=lambda: reset_area(image_area=False)) # Reset region option inside region menu.
+
+    #Description Menu.
+    description_menu = Menu(menu, tearoff=0) # Tearoff=0 makes the menu cleaner.
+    menu.add_cascade(label="Description",menu=description_menu) # Add menu cascade for description.
+    description_menu.add_command(label="Describe Image",command=lambda: describe(selectedRegion))
+
+    # Train Menu.
+    train_menu = Menu(menu, tearoff=0) # Tearoff=0 makes the menu cleaner.
+    menu.add_cascade(label="Train",menu=train_menu) # Add menu cascade for description.
+    train_menu.add_command(label="Create Sample",command=lambda: createSample())
+    train_menu.add_command(label="Read Sample",command=lambda: readSample())
 
 # Convert image from opencv to imagetk format to show at Tk. 
 # Return new image to show.
@@ -173,9 +189,9 @@ def doubleclick_event(event):
         #Show area of interest in another window.
         selectedRegionTk = convert_image(selectedRegion)
 
-        # Get root window position.
-        x = root.winfo_width() + root.winfo_x()
-        y = root.winfo_y()
+        # Get mainwindow window position.
+        x = mainwindow.winfo_width() + mainwindow.winfo_x()
+        y = mainwindow.winfo_y()
 
         # If there is no window for it yet, creates one; else, just updates it.
         if region_window is None:
@@ -276,6 +292,20 @@ def changeGrayScale(newGrayScale):
         selectedRegionTk = convert_image(selectedRegion)
         apply_image(selectedRegionTk,region_label)
 
+# Function to change level of gray in the region and updates it.
+def changeGrayScale(grayImage, newGrayScale):
+    newGrayScale = newGrayScale-1 # 16 levels of gray is 0 to 15.
+    for i in range(0,grayImage.shape[0]):
+        for j in range(0,grayImage.shape[1]):
+            #To quantize each channel into N levels (assuming the input is in the range [0,255]. 
+            # You can also use floor, which is more suitable in some cases. 
+            # This leads to N^3 different colors. 
+            # For example with N=8 you get 512 unique RGB colors.
+            # round(img*(N/255))*(255/N)
+            grayImage[i,j] = round(grayImage[i,j]*(newGrayScale/255))*(255/newGrayScale) # Uniform quantization.
+
+    return grayImage
+
 # Function to change resolution of the region and updates it.
 def changeResolution(newWidth, newHeight):
     global selectedRegion
@@ -290,7 +320,14 @@ def changeResolution(newWidth, newHeight):
 
         # Convert and show region.
         selectedRegionTk = convert_image(selectedRegion)
-        apply_image(selectedRegionTk,region_label)        
+        apply_image(selectedRegionTk,region_label)
+
+# Function to change resolution of the region and updates it.
+def changeResolution(resolutionImage, newWidth, newHeight):
+        #Dimenstion we wanted to be change.
+        dimension=(newWidth,newHeight)   
+        #First set the resolution to the image.
+        return cv.resize(resolutionImage,dimension, interpolation = cv.INTER_AREA)            
 
 # Function to equalize image.
 def equalize():
@@ -301,16 +338,123 @@ def equalize():
 
         # Convert and show region.
         selectedRegionTk = convert_image(equalize_img)
-        apply_image(selectedRegionTk,region_label)  
+        apply_image(selectedRegionTk,region_label)
 
-root = Tk() # Main instance of Tk application.
-root.title("BI-RADS Recognizer")
-root.geometry("+500+75") # Move the main window to 400, 400 on the screen.
+# Function to equalize image.
+def equalize(equalizeImage):
+    return cv.equalizeHist(equalizeImage)
+
+# Function to describe a image or a selectedRegion using Haralick classifier.
+# greycoprops could use correlation, homogeneity, contrast.
+def describe(describeImage):
+    resolutions = [128, 64, 32]
+    greyscales = [32, 16]   
+    description = np.array([]) # List that contain all the description of a image.
+    radius=[1,2,4,8,16]
+    angles=[0, np.pi/4, np.pi/2, 3*np.pi/4] # Angles of 0, 45, 90 and 135 degrees.
+    entropyList = [] # List that will contain all the entropy values.
+    
+    # Do for 128x128, 64x64 e 32x32 resolutions.
+    for res in resolutions:
+        tmp_image = changeResolution(describeImage,res,res)
+        # Do for 32 and 16 grey scales.
+        for gs in greyscales:
+            tmp_image = changeGrayScale(tmp_image, gs)
+            tmp_image = equalize(tmp_image)
+            # Create a Grey Level Co-occurence Matrix with radius'th and angles'th.
+            glcm = greycomatrix(tmp_image, radius, angles, levels=256, symmetric=True, normed=True)
+
+            # Append the homogeneity for all the radius and angles.
+            description = np.append(description, greycoprops(glcm, 'homogeneity').flatten()).tolist()# tolist() will force to write all the data in the same line.
+
+            # In this case was necessary to create the loop because the entropy formula was acquired
+            # with applying in a simple GLCM a shannon_entropy.
+            for r in radius:
+                for a in angles:
+                    tmp_glcm = greycomatrix(tmp_image, [r], [a], levels=256, symmetric=True, normed=True)
+                    entropyList.append(shannon_entropy(tmp_glcm))
+            # Append the entropy for all the radius and angles.
+            description = np.append(description, entropyList).tolist() # tolist() will force to write all the data in the same line.
+            entropyList.clear()
+
+            # Append the contrast for all the radius and angles.
+            description = np.append(description, greycoprops(glcm, 'contrast').flatten()).tolist() # tolist() will force to write all the data in the same line.
+
+    return description
+
+# Function to create the 75% of the Sample BIRADS Image.
+def createSample():
+    sampleListPath = [] # List that will contain all the path of the images in the folder.
+    sampleListFile = [] # List that will contain all the file names of the images in the folder.
+    sampleListData = [] # List that will contain  the data of the images in the folder.
+    
+    # Open the folder that contains all the Samples.
+    directoryPath = filedialog.askdirectory()
+    for root, directories, files in os.walk(directoryPath):
+        for filename in files:
+            # Join the two strings in order to form the full filepath.
+            filepath = os.path.join(root, filename)
+            sampleListPath.append(filepath)  # Add it to the list.
+            sampleListFile.append(filename)  # Add it to the list.
+
+            # Open a image, describe it and and the data in the List.
+            if len(filepath) > 0:
+                sample_image = cv.imread(filepath, cv.IMREAD_COLOR) # Read as opencv.
+                sample_image_gray = cv.cvtColor(sample_image, cv.COLOR_BGR2GRAY) # Convert to gray.
+                
+                BIRADS = -1
+                # Check the BIRADS.
+                if filename[0:3] == "p_d":
+                    BIRADS = 1
+                if filename[0:3] == "p_e":
+                    BIRADS = 2
+                if filename[0:3] == "p_f":
+                    BIRADS = 3
+                if filename[0:3] == "p_g":
+                    BIRADS = 4
+                # Add information to the list.  
+                sampleListData.append("{},{}".format(describe(sample_image_gray),BIRADS))
+
+    # Create the sample_file that will contain the data of each image and its BIRADS.
+    sample_file = open("sample_file", "w")
+    # Write in file a index, the data, and its BIRADS.
+    index = 0
+    for data in sampleListData:        
+        sample_file.write("{},{}\n".format(index,data))
+        index = index + 1
+
+    # Close file.
+    sample_file.close()
+
+# Function to read the Sample file.
+def readSample():
+    # Open file.
+    sample_file = open("sample_file", "r")
+    
+    # Read the first line.
+    line = sample_file.readline()
+    line.split() # Split is necessary to get negative indexes.
+    # Get index in a string.
+    index = line[0:1] 
+    # Get that in a string and transfor to a NumPy Array of float64.
+    data = line[3:-4] 
+    npdata = np.fromstring(data, sep=',')
+    # Get BIRADS information.
+    BIRADS = line[-2]
+
+    # Close file.
+    sample_file.close()
+
+
+mainwindow = Tk() # Main instance of Tk application.
+mainwindow.title("BI-RADS Recognizer")
+#mainwindow.geometry("800x600") # Set size of the Main Window.
+mainwindow.geometry("+500+75") # Move the main window to 500, 75 on the screen.
 
 # Create Main Menu.
-menu = Menu(root)
-root.configure(menu=menu)
+menu = Menu(mainwindow)
+mainwindow.configure(menu=menu)
 configure_menu() #Procedure to create our menu.
 
 # Runs final application.
-root.mainloop()
+mainwindow.mainloop()
