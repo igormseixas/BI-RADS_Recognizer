@@ -365,8 +365,9 @@ def describe(describeImage):
             glcm = greycomatrix(tmp_image, radius, angles, levels=256, symmetric=True, normed=True)
 
             # Append the homogeneity for all the radius and angles.
-            description = np.append(description, greycoprops(glcm, 'homogeneity').flatten()).tolist()# tolist() will force to write all the data in the same line.
+            #description = np.append(description, greycoprops(glcm, 'homogeneity').flatten()).tolist()# tolist() will force to write all the data in the same line.
 
+            '''
             # In this case was necessary to create the loop because the entropy formula was acquired
             # with applying in a simple GLCM a shannon_entropy.
             for r in radius:
@@ -376,7 +377,8 @@ def describe(describeImage):
             # Append the entropy for all the radius and angles.
             description = np.append(description, entropyList).tolist() # tolist() will force to write all the data in the same line.
             entropyList.clear()
-
+            '''
+            
             # Append the contrast for all the radius and angles.
             description = np.append(description, greycoprops(glcm, 'contrast').flatten()).tolist() # tolist() will force to write all the data in the same line.
 
@@ -405,13 +407,13 @@ def createSample():
                 BIRADS = -1
                 # Check the BIRADS.
                 if filename[0:3] == "p_d":
-                    BIRADS = 1
+                    BIRADS = 0
                 if filename[0:3] == "p_e":
-                    BIRADS = 2
+                    BIRADS = 1
                 if filename[0:3] == "p_f":
-                    BIRADS = 3
+                    BIRADS = 2
                 if filename[0:3] == "p_g":
-                    BIRADS = 4
+                    BIRADS = 3
                 # Add information to the list.  
                 sampleListData.append("{},{}".format(describe(sample_image_gray),BIRADS))
 
@@ -425,6 +427,8 @@ def createSample():
 
     # Close file.
     sample_file.close()
+    print("Number of images analised: ",index)
+    print("Create sample data ended...")
 
 # Function to read the Sample file.
 def readSample():
