@@ -26,7 +26,7 @@ def readSample(file_name):
         # Get index in a string.
         index.append(line[0]) 
         # Get that in a string and transform to a NumPy Array of float64. Line at postion[1] will get all values of the image characterisc, plus its BIRADS.
-        raw_data = (line[1][3:-4])
+        raw_data = (line[1][1:-4])
         nprawdata = np.fromstring(raw_data, dtype=np.float64, sep=',')
         #print(nprawdata)
         #print(len(nprawdata))
