@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys
 import os
+import random
 
 from tkinter import *
 from tkinter import filedialog
@@ -71,6 +72,7 @@ def configure_menu():
     menu.add_cascade(label="Train",menu=train_menu) # Add menu cascade for description.
     train_menu.add_command(label="Create Sample",command=lambda: createSample())
     train_menu.add_command(label="Read Sample",command=lambda: readSample())
+    train_menu.add_command(label="Shuffle Sample",command=shuffleSample)
 
 # Convert image from opencv to imagetk format to show at Tk. 
 # Return new image to show.
@@ -449,6 +451,49 @@ def readSample():
     # Close file.
     sample_file.close()
 
+# Function to shuffle and divide sample file into training file and testing file
+def shuffleSample():
+    sample_list = [] # List that will contain all the lines from sample file.
+    training_list = [] # List that will contain a certain percent of the lines of sample file
+    testing_list = [] # List that will contain a (100 - Traning percent) percent of the lines of sample file
+
+    # With command does automatically the opening and closing of the file
+    # Open sample_file and fill sample_list
+    with open("sample_file") as sample_file:
+        for line in sample_file:
+            sample_list.append(line)
+    
+    rangeMin = 0 # Controling starting point for each BIRADS type
+    rangeMax = 100 # Controling ending point for each BIRADS type
+    amount_per_class = 100 # Amount of lines for each BIRADS type
+    training_amount_class = 75 # Number of lines of each BIRADS type training_file will contain
+    i = 0 # Index for BIRADS type amount
+
+    while i < 4:
+        range_shuffled = random.sample(range(rangeMin,rangeMax),amount_per_class) # Shuffle indexes for a BIRADS type within a certain amount
+        index = 0 # Control of lines for training and testing lists
+        while index < training_amount_class: # Until all lines for training are appended
+            training_list.append(sample_list[range_shuffled[index]])
+            index += 1
+        while index < amount_per_class: # Until remaining lines for testing are appended
+            testing_list.append(sample_list[range_shuffled[index]])
+            index += 1
+        rangeMin += amount_per_class # Updates rangeMin for next BIRADS type
+        rangeMax += amount_per_class # Updates rangeMax for next BIRADS type
+        i += 1 # Updates index for BIRADS type amount
+
+    #print(training_list[74],training_list[149],training_list[224],training_list[229])
+    random.shuffle(training_list) # Shuffle finished training_list
+    with open("training_file","w") as training_file: # Write training_list into training_file
+        for line in training_list:
+            training_file.write(line)
+    print("Training File Created!")
+
+    random.shuffle(testing_list) # Shuffle finished testing_list
+    with open("testing_file","w") as testing_file: # Write testing_list into training_file
+        for line in testing_list:
+            testing_file.write(line)
+    print("Testing File Created!")
 
 mainwindow = Tk() # Main instance of Tk application.
 mainwindow.title("BI-RADS Recognizer")
