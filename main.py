@@ -28,6 +28,10 @@ selectedRegion = None
 selectedRegion_is_gray = False
 copySelectedRegion = None
 zoom_in = False
+sample_window = None
+homogeneity = None
+entropy = None
+contrast = None
 
 # Configure Main Menu.
 def configure_menu():
@@ -60,6 +64,7 @@ def configure_menu():
     region_menu.add_command(label="Histogram Equalization",command=equalize) # Image histogram equalization option inside image menu.
 
     region_menu.add_separator()
+    region_menu.add_command(label="Classify",command=None) # Classify region with a trained neural network.
     region_menu.add_command(label="Reset",command=lambda: reset_area(image_area=False)) # Reset region option inside region menu.
 
     #Description Menu.
@@ -70,7 +75,7 @@ def configure_menu():
     # Train Menu.
     train_menu = Menu(menu, tearoff=0) # Tearoff=0 makes the menu cleaner.
     menu.add_cascade(label="Train",menu=train_menu) # Add menu cascade for description.
-    train_menu.add_command(label="Create Sample",command=lambda: createSample())
+    train_menu.add_command(label="Create Sample",command=sampleOptions)
     train_menu.add_command(label="Read Sample",command=lambda: readSample())
     train_menu.add_command(label="Shuffle Sample",command=shuffleSample)
 
@@ -213,7 +218,7 @@ def doubleclick_event(event):
                 apply_image(selectedRegionTk,region_label)
             else:
                 region_window = Toplevel()
-                region_window.title("Região")
+                region_window.title("Region")
 
                 region_label = Label(region_window,image=selectedRegionTk) # Creating new label for region inside new window.
                 region_label.image = selectedRegionTk
@@ -294,8 +299,8 @@ def changeGrayScale(newGrayScale):
         selectedRegionTk = convert_image(selectedRegion)
         apply_image(selectedRegionTk,region_label)
 
-# Function to change level of gray in the region and updates it.
-def changeGrayScale(grayImage, newGrayScale):
+# Generic function to change level of gray in the region and updates it.
+def changeGrayScale_generic(grayImage, newGrayScale):
     newGrayScale = newGrayScale-1 # 16 levels of gray is 0 to 15.
     for i in range(0,grayImage.shape[0]):
         for j in range(0,grayImage.shape[1]):
@@ -324,8 +329,8 @@ def changeResolution(newWidth, newHeight):
         selectedRegionTk = convert_image(selectedRegion)
         apply_image(selectedRegionTk,region_label)
 
-# Function to change resolution of the region and updates it.
-def changeResolution(resolutionImage, newWidth, newHeight):
+# Generic function to change resolution of the region and updates it.
+def changeResolution_generic(resolutionImage, newWidth, newHeight):
         #Dimenstion we wanted to be change.
         dimension=(newWidth,newHeight)   
         #First set the resolution to the image.
@@ -342,8 +347,8 @@ def equalize():
         selectedRegionTk = convert_image(equalize_img)
         apply_image(selectedRegionTk,region_label)
 
-# Function to equalize image.
-def equalize(equalizeImage):
+# Generic function to equalize image.
+def equalize_generic(equalizeImage):
     return cv.equalizeHist(equalizeImage)
 
 # Function to describe a image or a selectedRegion using Haralick classifier.
@@ -358,36 +363,75 @@ def describe(describeImage):
     
     # Do for 128x128, 64x64 e 32x32 resolutions.
     for res in resolutions:
-        tmp_image = changeResolution(describeImage,res,res)
+        tmp_image = changeResolution_generic(describeImage,res,res)
         # Do for 32 and 16 grey scales.
         for gs in greyscales:
-            tmp_image = changeGrayScale(tmp_image, gs)
-            tmp_image = equalize(tmp_image)
+            tmp_image = changeGrayScale_generic(tmp_image, gs)
+            tmp_image = equalize_generic(tmp_image)
             # Create a Grey Level Co-occurence Matrix with radius'th and angles'th.
             glcm = greycomatrix(tmp_image, radius, angles, levels=256, symmetric=True, normed=True)
 
-            # Append the homogeneity for all the radius and angles.
-            #description = np.append(description, greycoprops(glcm, 'homogeneity').flatten()).tolist()# tolist() will force to write all the data in the same line.
+            if homogeneity.get():
+                # Append the homogeneity for all the radius and angles.
+                description = np.append(description, greycoprops(glcm, 'homogeneity').flatten()).tolist()# tolist() will force to write all the data in the same line.
 
-            '''
-            # In this case was necessary to create the loop because the entropy formula was acquired
-            # with applying in a simple GLCM a shannon_entropy.
-            for r in radius:
-                for a in angles:
-                    tmp_glcm = greycomatrix(tmp_image, [r], [a], levels=256, symmetric=True, normed=True)
-                    entropyList.append(shannon_entropy(tmp_glcm))
-            # Append the entropy for all the radius and angles.
-            description = np.append(description, entropyList).tolist() # tolist() will force to write all the data in the same line.
-            entropyList.clear()
-            '''
-            
-            # Append the contrast for all the radius and angles.
-            description = np.append(description, greycoprops(glcm, 'contrast').flatten()).tolist() # tolist() will force to write all the data in the same line.
+            if entropy.get():
+                # In this case was necessary to create the loop because the entropy formula was acquired
+                # with applying in a simple GLCM a shannon_entropy.
+                for r in radius:
+                    for a in angles:
+                        tmp_glcm = greycomatrix(tmp_image, [r], [a], levels=256, symmetric=True, normed=True)
+                        entropyList.append(shannon_entropy(tmp_glcm))
+                # Append the entropy for all the radius and angles.
+                description = np.append(description, entropyList).tolist() # tolist() will force to write all the data in the same line.
+                entropyList.clear()
+
+            if contrast.get():
+                # Append the contrast for all the radius and angles.
+                description = np.append(description, greycoprops(glcm, 'contrast').flatten()/100000).tolist() # tolist() will force to write all the data in the same line.
 
     return description
 
+# Function to decide what descriptor(s) to use.
+def sampleOptions():
+    global sample_window
+    global homogeneity
+    global entropy
+    global contrast
+
+    # Creates new window to choose which descriptor to use. Create frames for better organization of the buttons
+    sample_window = Toplevel()
+    sample_window.title("Descriptors Option")
+    sample_upper_frame = Frame(sample_window)
+    sample_upper_frame.pack()
+    sample_bottom_frame = Frame(sample_window)
+    sample_bottom_frame.pack()
+
+    # Create variables for each Checkbutton to know which descriptor to calculate
+    homogeneity = IntVar()
+    entropy = IntVar()
+    contrast = IntVar()
+    homogeneity_button = Checkbutton(sample_upper_frame, text = "Homogeneity", variable = homogeneity, onvalue = 1, offvalue = 0)
+    homogeneity_button.pack(side=LEFT)
+    entropy_button = Checkbutton(sample_upper_frame, text = "Entropy", variable = entropy, onvalue = 1, offvalue = 0)
+    entropy_button.pack(side=LEFT)
+    contrast_button = Checkbutton(sample_upper_frame, text = "Contrast", variable = contrast, onvalue = 1, offvalue = 0)
+    contrast_button.pack(side=LEFT)
+
+    # Button to confirm descriptors checked and start creating sample file
+    confirm_button = Button(sample_bottom_frame, text="Confirmar", command=createSample)
+    confirm_button.pack(side=BOTTOM, pady = 5)
+
+    # Get mainwindow window position.
+    x = mainwindow.winfo_width()
+    y = mainwindow.winfo_y()
+    # x+50 is the padding of the width, and y + 0 is the padding of the height.
+    sample_window.geometry("+%d+%d" % (x - 50, y + 0)) 
+    sample_window.mainloop() # Generate sample window
+
 # Function to create the 75% of the Sample BIRADS Image.
 def createSample():
+    sample_window.destroy() # Close sample options window
     sampleListPath = [] # List that will contain all the path of the images in the folder.
     sampleListFile = [] # List that will contain all the file names of the images in the folder.
     sampleListData = [] # List that will contain  the data of the images in the folder.
@@ -453,6 +497,22 @@ def readSample():
 
 # Function to shuffle and divide sample file into training file and testing file
 def shuffleSample():
+    sample_list = [] # List that will contain all the lines from sample file.
+
+    # With command does automatically the opening and closing of the file
+    # Open sample_file and fill sample_list
+    with open("sample_file") as sample_file:
+        for line in sample_file:
+            sample_list.append(line)
+
+    random.shuffle(sample_list) # Shuffle sample list
+    with open("training_file","w") as training_file: # Write into training_file
+        for line in sample_list:
+            training_file.write(line)
+    print("Training File Created!")
+
+# Function to shuffle and divide sample file into training file and testing file
+def shuffleSample_old():
     sample_list = [] # List that will contain all the lines from sample file.
     training_list = [] # List that will contain a certain percent of the lines of sample file
     testing_list = [] # List that will contain a (100 - Traning percent) percent of the lines of sample file
