@@ -32,6 +32,7 @@ sample_window = None
 homogeneity = None
 entropy = None
 contrast = None
+describe_region = False
 
 # Configure Main Menu.
 def configure_menu():
@@ -64,7 +65,7 @@ def configure_menu():
     region_menu.add_command(label="Histogram Equalization",command=equalize) # Image histogram equalization option inside image menu.
 
     region_menu.add_separator()
-    region_menu.add_command(label="Classify",command=None) # Classify region with a trained neural network.
+    region_menu.add_command(label="Classify",command=regionClassification) # Classify region with a trained neural network.
     region_menu.add_command(label="Reset",command=lambda: reset_area(image_area=False)) # Reset region option inside region menu.
 
     # Train Menu.
@@ -394,12 +395,22 @@ def describe(describeImage):
 
     return description
 
+# Function to start descriptors options for the region
+def regionClassification():
+    global describe_region
+    if (region_window is not None) and (region_window.winfo_exists()):  # Makes sure the window with region exists.
+        describe_region = True
+        sampleOptions()
+
 # Function to decide what descriptor(s) to use.
 def sampleOptions():
     global sample_window
     global homogeneity
     global entropy
     global contrast
+    global describe_region
+    global selectedRegion
+    global selectedRegion_is_gray
 
     # Creates new window to choose which descriptor to use. Create frames for better organization of the buttons
     sample_window = Toplevel()
@@ -423,18 +434,46 @@ def sampleOptions():
     contrast_button.select()
     contrast_button.pack(side=LEFT)
 
+    # If it is to create the options window for the region
+    if describe_region:
+        describe_region = False # Avoiding entering here without needed
+        #Convert image to Gray if not already.
+        if not selectedRegion_is_gray: # Avoid error if region is already in gray scale.
+            selectedRegion = cv.cvtColor(selectedRegion, cv.COLOR_BGR2GRAY)
+            selectedRegion_is_gray = True
+        # Button to confirm descriptors checked and start creating sample file
+        confirm_button = Button(sample_bottom_frame, text="Confirmar", command=createRegionSample)
+        confirm_button.pack(side=BOTTOM, pady = 5)
 
+        # Get region window position.
+        x = region_window.winfo_x()
+        y = region_window.winfo_height() + region_window.winfo_y()
+        # x+0 is the padding of the width, and y + 50 is the padding of the height.
+        sample_window.geometry("+%d+%d" % (x + 0, y + 50))
+    else:
+        # Button to confirm descriptors checked and start creating sample file
+        confirm_button = Button(sample_bottom_frame, text="Confirmar", command=createSample)
+        confirm_button.pack(side=BOTTOM, pady = 5)
 
-    # Button to confirm descriptors checked and start creating sample file
-    confirm_button = Button(sample_bottom_frame, text="Confirmar", command=createSample)
-    confirm_button.pack(side=BOTTOM, pady = 5)
-
-    # Get mainwindow window position.
-    x = mainwindow.winfo_width()
-    y = mainwindow.winfo_y()
-    # x+50 is the padding of the width, and y + 0 is the padding of the height.
-    sample_window.geometry("+%d+%d" % (x - 50, y + 0)) 
+        # Get mainwindow window position.
+        x = mainwindow.winfo_width()
+        y = mainwindow.winfo_y()
+        # x-50 is the padding of the width, and y + 0 is the padding of the height.
+        sample_window.geometry("+%d+%d" % (x - 50, y + 0)) 
     sample_window.mainloop() # Generate sample window
+
+# Function to create the selected region sample
+def createRegionSample():
+    sample_window.destroy() # Close sample options window
+    region_description = "{}".format(describe(selectedRegion)) # Get description of the region with the selected descriptors and transform to a string
+
+    # Create region file to classify at the neural network
+    with open("region_file","w") as region_file:
+        region_file.write(region_description)
+    print("Region File Created!")
+
+    # Call the neural network to classify this region given selected description
+    os.system("docker exec -it -w /BIRADS BIRADS python neural_network.py classify_region")
 
 # Function to create the 75% of the Sample BIRADS Image.
 def createSample():
@@ -509,7 +548,7 @@ def trainModel():
 def printConfusionMatrix():
     os.system("docker exec -it -w /BIRADS BIRADS python neural_network.py print_confusion_matrix")
 
-# Function to print the confusion matrix.
+# Function to print the neural network model.
 def printModel():
     os.system("docker exec -it -w /BIRADS BIRADS python neural_network.py print_model")
 

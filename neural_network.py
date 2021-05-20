@@ -73,6 +73,39 @@ def readSample(file_name):
     # Return the triple.
     return (npindex, npdata, npBIRADS)
 
+# Function to read and classify the region file.
+def classifyRegionSample(model):
+    # Open file.
+    region_sample_file = open("region_file", "r")
+
+    # The file will contain only the description.
+    # Get data in a string and split it
+    line = region_sample_file.readline()
+    split_raw_data = line[1:-1].split(sep=',')
+
+    '''
+    # Get data and separate through characteristics.
+    homogeneity = split_raw_data[0:120]
+    entropy = split_raw_data[120:240]
+    contrast = split_raw_data[240:360]
+    '''
+
+    # Select what characteristics do to what to feed the neural network.
+    #final_region_data = np.array(homogeneity+entropy+contrast, dtype=np.float64)
+    final_region_data = np.array(split_raw_data, dtype=np.float64)
+
+    # Add the region data to a batch where it's the only member.
+    region_data = (np.expand_dims(final_region_data,0))
+
+    # Close file.
+    region_sample_file.close()
+    #print(region_data.shape)
+
+    # Classify the region.
+    prediction = model.predict(region_data)
+    print("Análise:", prediction[0])
+    print("BIRADS que a rede classificou:", np.argmax(prediction[0])+1)
+
 # Function to create and compile model.
 def createModel():
     # Create and build the model.
@@ -184,3 +217,10 @@ if(len(sys.argv) > 1 and sys.argv[1] == "print_confusion_matrix"):
     model = tf.keras.models.load_model('neural_network_model')
     # Print the matrix.
     printConfusionMatrix(model)
+
+# Check the command to classify the region.
+if(len(sys.argv) > 1 and sys.argv[1] == "classify_region"):
+    # Load the last model.
+    model = tf.keras.models.load_model('neural_network_model')
+    # Classify the region.
+    classifyRegionSample(model)
