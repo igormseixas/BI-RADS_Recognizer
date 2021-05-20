@@ -67,17 +67,19 @@ def configure_menu():
     region_menu.add_command(label="Classify",command=None) # Classify region with a trained neural network.
     region_menu.add_command(label="Reset",command=lambda: reset_area(image_area=False)) # Reset region option inside region menu.
 
-    #Description Menu.
-    description_menu = Menu(menu, tearoff=0) # Tearoff=0 makes the menu cleaner.
-    menu.add_cascade(label="Description",menu=description_menu) # Add menu cascade for description.
-    description_menu.add_command(label="Describe Image",command=lambda: describe(selectedRegion))
-
     # Train Menu.
     train_menu = Menu(menu, tearoff=0) # Tearoff=0 makes the menu cleaner.
     menu.add_cascade(label="Train",menu=train_menu) # Add menu cascade for description.
-    train_menu.add_command(label="Create Sample",command=sampleOptions)
-    train_menu.add_command(label="Read Sample",command=lambda: readSample())
-    train_menu.add_command(label="Shuffle Sample",command=shuffleSample)
+    train_menu.add_command(label="Create Sample File",command=sampleOptions)
+    train_menu.add_command(label="Shuffle Sample File",command=shuffleSample)
+    train_menu.add_separator()
+    train_menu.add_command(label="Train New Model",command=trainModel)
+    #train_menu.add_command(label="Load Model",command=None)
+    train_menu.add_separator()
+    train_menu.add_command(label="Print Model",command=printModel)
+    train_menu.add_command(label="Print Confusion Matrix",command=printConfusionMatrix)
+
+
 
 # Convert image from opencv to imagetk format to show at Tk. 
 # Return new image to show.
@@ -412,11 +414,16 @@ def sampleOptions():
     entropy = IntVar()
     contrast = IntVar()
     homogeneity_button = Checkbutton(sample_upper_frame, text = "Homogeneity", variable = homogeneity, onvalue = 1, offvalue = 0)
+    homogeneity_button.select()
     homogeneity_button.pack(side=LEFT)
     entropy_button = Checkbutton(sample_upper_frame, text = "Entropy", variable = entropy, onvalue = 1, offvalue = 0)
+    entropy_button.select()
     entropy_button.pack(side=LEFT)
     contrast_button = Checkbutton(sample_upper_frame, text = "Contrast", variable = contrast, onvalue = 1, offvalue = 0)
+    contrast_button.select()
     contrast_button.pack(side=LEFT)
+
+
 
     # Button to confirm descriptors checked and start creating sample file
     confirm_button = Button(sample_bottom_frame, text="Confirmar", command=createSample)
@@ -473,27 +480,10 @@ def createSample():
 
     # Close file.
     sample_file.close()
-    print("Number of images analised: ",index)
-    print("Create sample data ended...")
-
-# Function to read the Sample file.
-def readSample():
-    # Open file.
-    sample_file = open("sample_file", "r")
-    
-    # Read the first line.
-    line = sample_file.readline()
-    line.split() # Split is necessary to get negative indexes.
-    # Get index in a string.
-    index = line[0:1] 
-    # Get that in a string and transfor to a NumPy Array of float64.
-    data = line[3:-4] 
-    npdata = np.fromstring(data, sep=',')
-    # Get BIRADS information.
-    BIRADS = line[-2]
-
-    # Close file.
-    sample_file.close()
+    # Print results.
+    if len(directoryPath) > 0:
+        print("Number of images analised: ",index)
+        print("Create sample data ended...")
 
 # Function to shuffle and divide sample file into training file and testing file
 def shuffleSample():
@@ -510,6 +500,18 @@ def shuffleSample():
         for line in sample_list:
             training_file.write(line)
     print("Training File Created!")
+
+# Function to call the neural network model and train it.
+def trainModel():
+    os.system("docker exec -it -w /BIRADS BIRADS python neural_network.py train_model")
+
+# Function to print the confusion matrix.
+def printConfusionMatrix():
+    os.system("docker exec -it -w /BIRADS BIRADS python neural_network.py print_confusion_matrix")
+
+# Function to print the confusion matrix.
+def printModel():
+    os.system("docker exec -it -w /BIRADS BIRADS python neural_network.py print_model")
 
 # Function to shuffle and divide sample file into training file and testing file
 def shuffleSample_old():
