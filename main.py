@@ -1,9 +1,22 @@
+'''
+/**
+* 1/2021
+* Pontifícia Universidade Católica de Minas Gerais
+* Processamento de Imagens - Prof. Alexei Machado
+* Designed by:
+* @author Gabriel Antonio Diniz Meneguite
+* @author Igor Machado Seixas
+* @author Matheus Mendes Tavares
+* @version 1.00a
+*/
+'''
+
 import cv2 as cv
 import numpy as np
-import matplotlib.pyplot as plt
 import sys
 import os
 import random
+import time
 
 from tkinter import *
 from tkinter import filedialog
@@ -183,6 +196,7 @@ def doubleclick_event(event):
         overlay = image[region_initial_height:region_final_height, region_initial_width:region_final_width]
         # Copy information to a selected image.
         selectedRegion = overlay.copy()
+
         # Define a blue rectangle in the same shape as previously selected.
         blue_rect = np.full(overlay.shape, (255,0,0), dtype=np.uint8) #Build rectangle and set the blue color (255,0,0)
         # Add the rectangle to the selected and previously cut area of an image. Scale the transparency.
@@ -359,7 +373,12 @@ def equalize_generic(equalizeImage):
 def describe(describeImage):
     resolutions = [128, 64, 32]
     greyscales = [32, 16]   
+    
     description = np.array([]) # List that contain all the description of a image.
+    description_homogeneity = np.array([]) # List that contain all the description homogeneity of a image.
+    description_entropy = np.array([]) # List that contain all the description entropy of a image.
+    description_contrast = np.array([]) # List that contain all the description contrast of a image.
+    
     radius=[1,2,4,8,16]
     angles=[0, np.pi/4, np.pi/2, 3*np.pi/4] # Angles of 0, 45, 90 and 135 degrees.
     entropyList = [] # List that will contain all the entropy values.
@@ -376,7 +395,7 @@ def describe(describeImage):
 
             if homogeneity.get():
                 # Append the homogeneity for all the radius and angles.
-                description = np.append(description, greycoprops(glcm, 'homogeneity').flatten()).tolist()# tolist() will force to write all the data in the same line.
+                description_homogeneity = np.append(description_homogeneity, greycoprops(glcm, 'homogeneity').flatten()).tolist()# tolist() will force to write all the data in the same line.
 
             if entropy.get():
                 # In this case was necessary to create the loop because the entropy formula was acquired
@@ -386,13 +405,15 @@ def describe(describeImage):
                         tmp_glcm = greycomatrix(tmp_image, [r], [a], levels=256, symmetric=True, normed=True)
                         entropyList.append(shannon_entropy(tmp_glcm))
                 # Append the entropy for all the radius and angles.
-                description = np.append(description, entropyList).tolist() # tolist() will force to write all the data in the same line.
+                description_entropy = np.append(description_entropy, entropyList).tolist() # tolist() will force to write all the data in the same line.
                 entropyList.clear()
 
             if contrast.get():
                 # Append the contrast for all the radius and angles.
-                description = np.append(description, greycoprops(glcm, 'contrast').flatten()/100000).tolist() # tolist() will force to write all the data in the same line.
-
+                description_contrast = np.append(description_contrast, greycoprops(glcm, 'contrast').flatten()/100000).tolist() # tolist() will force to write all the data in the same line.
+    
+    description = np.concatenate((description_homogeneity, description_entropy, description_contrast), axis=None).tolist()
+    
     return description
 
 # Function to start descriptors options for the region
@@ -438,9 +459,11 @@ def sampleOptions():
     if describe_region:
         describe_region = False # Avoiding entering here without needed
         #Convert image to Gray if not already.
+
         if not selectedRegion_is_gray: # Avoid error if region is already in gray scale.
             selectedRegion = cv.cvtColor(selectedRegion, cv.COLOR_BGR2GRAY)
             selectedRegion_is_gray = True
+
         # Button to confirm descriptors checked and start creating sample file
         confirm_button = Button(sample_bottom_frame, text="Confirmar", command=createRegionSample)
         confirm_button.pack(side=BOTTOM, pady = 5)
@@ -450,6 +473,7 @@ def sampleOptions():
         y = region_window.winfo_height() + region_window.winfo_y()
         # x+0 is the padding of the width, and y + 50 is the padding of the height.
         sample_window.geometry("+%d+%d" % (x + 0, y + 50))
+
     else:
         # Button to confirm descriptors checked and start creating sample file
         confirm_button = Button(sample_bottom_frame, text="Confirmar", command=createSample)
@@ -477,6 +501,7 @@ def createRegionSample():
 
 # Function to create the 75% of the Sample BIRADS Image.
 def createSample():
+    start = time.time() # Stamp start time.
     sample_window.destroy() # Close sample options window
     sampleListPath = [] # List that will contain all the path of the images in the folder.
     sampleListFile = [] # List that will contain all the file names of the images in the folder.
@@ -519,9 +544,11 @@ def createSample():
 
     # Close file.
     sample_file.close()
+    end = time.time() # Stamp end time.
     # Print results.
     if len(directoryPath) > 0:
         print("Number of images analised: ",index)
+        print("Time spent: ", (end - start))
         print("Create sample data ended...")
 
 # Function to shuffle and divide sample file into training file and testing file
